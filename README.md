@@ -1,1 +1,1 @@
-# ai-coding-assistant
+# AI Coding Assistant
