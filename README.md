@@ -13,3 +13,6 @@ Install dependencies
 
 Run Assistant
 `uv run main.py`
+
+
+[How to build an Agent](https://ampcode.com/how-to-build-an-agent)
