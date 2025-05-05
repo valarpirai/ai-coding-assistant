@@ -17,63 +17,114 @@ class Assistant:
         )
         self.tools = [
             {
-                "type": "function",
-                "function": {
-                    "name": "read_file",
-                    "description": "Read the content of a file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {"type": "string", "description": "The path to the file to be read"}
+                "name": "read_file",
+                "description": "Read the contents of a file at the given path.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The path to the file to read."
                         }
-                    }
+                    },
+                    "required": ["path"]
                 }
             },
             {
-                "type": "function",
-                "function": {
-                    "name": "write_file",
-                    "description": "Write to a file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {"type": "string", "description": "The path to the file to be written"}
+                "name": "write_file",
+                "description": "Write content to a file at the given path.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The path to the file to write to."
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The content to write to the file."
                         }
-                    }
+                    },
+                    "required": ["path", "content"]
                 }
             },
             {
-                "type": "function",
-                "function": {
-                    "name": "list_files",
-                    "description": "List the files in a directory",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "directory": {"type": "string", "description": "The directory to list the files in"}
+                "name": "list_files",
+                "description": "List all files in a given directory.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "The path to the directory to list files from."
                         }
-                    }
+                    },
+                    "required": ["path"]
                 }
             }
         ]
+        self.tool_functions = {
+            "read_file": read_file,
+            "write_file": write_file,
+            "list_files": list_files
+        }
 
     def add_user_message(self, message: str):
         self.messages.append({"role": "user", "content": message})
 
-    def add_assistant_message(self, message: str):
+    def add_assistant_message(self, message: list):
         self.messages.append({"role": "assistant", "content": message})
 
     def run_inference(self, message: str):
         self.add_user_message(message)
         response = self.client.messages.create(
-            model="claude-3-5-sonnet-20240620",
-            max_tokens=100,
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1024,
             messages=self.messages,
             tools=self.tools,
-            tool_choice="auto"
+            tool_choice={"type": "auto"}
         )
-        self.add_assistant_message(response.content[0].text)
-        return response.content[0].text
+
+        self.add_assistant_message(response.content)
+
+        assistant_message = ""
+        for content_block in response.content:
+            print(content_block)
+            if content_block.type == "text":
+                assistant_message += content_block.text
+            elif content_block.type == "tool_use":
+                tool_name = content_block.name
+                tool_input = content_block.input
+                tool_function = self.tool_functions.get(tool_name)
+                if tool_function:
+                    try:
+                        print(Fore.BLUE + "Tool:" + Style.RESET_ALL, tool_name + "(", tool_input, ")", "\n")
+                        result = tool_function(tool_input)
+                        self.messages.append({
+                            "role": "user",
+                            "content": [{
+                                "type": "tool_result",
+                                "tool_use_id": content_block.id,
+                                "content": result
+                            }]
+                        })
+                        # Continue the conversation with tool result
+                        response = self.client.messages.create(
+                            model="claude-3-5-sonnet-20241022",
+                            max_tokens=1024,
+                            messages=self.messages,
+                            tools=self.tools,
+                            tool_choice={"type": "auto"}
+                        )
+                        for block in response.content:
+                            if block.type == "text":
+                                assistant_message += block.text
+                        # self.add_assistant_message(assistant_message)
+                    except Exception as e:
+                        assistant_message += f"\nError executing tool {tool_name}: {str(e)}"
+                else:
+                    assistant_message += f"\nUnknown tool: {tool_name}"
+        return assistant_message
     
     def get_user_input(self):
         return input(Fore.BLUE + "You: " + Style.RESET_ALL)

@@ -1,6 +1,6 @@
 import os
 
-def read_file(file_path: str) -> str:
+def read_file(tool_input: dict) -> str:
     """
     Reads the content of a file and returns it as a string.
     
@@ -14,6 +14,7 @@ def read_file(file_path: str) -> str:
         FileNotFoundError: If the specified file does not exist.
         IOError: If there's an error reading the file.
     """
+    file_path = tool_input["path"]
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             return file.read()
@@ -22,7 +23,7 @@ def read_file(file_path: str) -> str:
     except IOError as e:
         return f"Error reading file '{file_path}': {str(e)}"
 
-def write_file(file_path: str, content: str) -> str:
+def write_file(tool_input: dict) -> str:
     """
     Writes content to a file.
     
@@ -36,6 +37,8 @@ def write_file(file_path: str, content: str) -> str:
     Raises:
         IOError: If there's an error writing to the file.
     """
+    file_path = tool_input["path"]
+    content = tool_input["content"]
     try:
         with open(file_path, 'w', encoding='utf-8') as file:
             file.write(content)
@@ -43,7 +46,7 @@ def write_file(file_path: str, content: str) -> str:
     except IOError as e:
         return f"Error writing to file '{file_path}': {str(e)}"
 
-def list_files(directory: str = ".") -> str:
+def list_files(tool_input: dict) -> str:
     """
     Lists all files in the specified directory.
     
@@ -56,12 +59,13 @@ def list_files(directory: str = ".") -> str:
     Raises:
         FileNotFoundError: If the specified directory does not exist.
     """
+    path = tool_input["path"]
     try:
-        files = os.listdir(directory)
+        files = os.listdir(path)
         if not files:
-            return f"No files found in '{directory}'."
+            return f"No files found in '{path}'."
         return "\n".join(files)
     except FileNotFoundError:
-        return f"Error: Directory '{directory}' not found."
+        return f"Error: Directory '{path}' not found."
     except PermissionError:
-        return f"Error: Permission denied accessing '{directory}'."
+        return f"Error: Permission denied accessing '{path}'."
